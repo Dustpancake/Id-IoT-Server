@@ -1,0 +1,110 @@
+version: "3.8"
+
+services:
+  web:
+    image: nginx
+    networks:
+      - backend
+    ports:
+      - 1883:1883
+      - 80:80
+      - 443:443
+    volumes:
+      - ${NGINX_ROOT}stream_conf.d:/etc/nginx/stream_conf.d
+      - ${NGINX_ROOT}nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - vernemq_slaves
+    logging:
+      driver: "fluentd"
+      options:
+        tag: "docker.lb"
+
+  vernemq_host:
+    image: vernemq/vernemq
+    depends_on:
+      - fluentd
+    networks:
+      backend:
+        ipv4_address: 172.18.5.4
+    environment:
+      - DOCKER_VERNEMQ_ALLOW_ANONYMOUS=on
+      - DOCKER_VERNEMQ_ACCEPT_EULA=yes
+    logging:
+      driver: "fluentd"
+      options:
+        tag: "docker.vmq"
+
+  vernemq_slaves:
+    image: vernemq/vernemq
+    depends_on:
+      - vernemq_host
+    networks:
+      - backend
+    environment:
+      - DOCKER_VERNEMQ_ALLOW_ANONYMOUS=on
+      - DOCKER_VERNEMQ_ACCEPT_EULA=yes
+      - DOCKER_VERNEMQ_DISCOVERY_NODE=172.18.5.4
+    logging:
+      driver: "fluentd"
+      options:
+        tag: "docker.vmq"
+
+  influx_database:
+    image: influxdb
+    networks:
+      - backend
+    ports:
+      - 25826:25826/udp
+      - 8086:8086
+    volumes:
+      - ${INFLUX_ROOT}influxdb.conf:/etc/influxdb/influxdb.conf:ro 
+      - ${INFLUX_ROOT}:/var/lib/influxdb 
+      - ${COLLECTD_ROOT}:/usr/share/collectd
+    command: -config /etc/influxdb/influxdb.conf 
+
+  grafana_dashboards:
+    image: grafana/grafana
+    networks:
+      - backend
+    ports:
+      - 3000:3000
+    volumes:
+      - ${GRAFANA_ROOT}:/var/lib/grafana
+    depends_on:
+      - vernemq_slaves
+    user: "$UID:$GID"
+
+  node_red:
+    build: ./nodered
+    networks:
+      - backend
+    ports:
+      - 1880:1880
+    volumes:
+      - ${NODERED_ROOT}:/data 
+    depends_on:
+      - vernemq_slaves
+    user: "${UID}:${GID}"
+    logging:
+      driver: "fluentd"
+      options:
+        tag: "docker.nodered"
+
+  fluentd:
+    build: ./fluentd
+    networks:
+      - backend
+    ports:
+      - 24224:24224
+      - 24224:24224/udp
+    volumes:
+      - ${FLUENTD_ROOT}fluent.conf:/fluentd/etc/fluent.conf
+    depends_on:
+      - influx_database
+    user: "${UID}:${GID}" 
+
+networks:
+  backend:
+    ipam:
+      config:
+        - subnet: 172.18.5.0/24
