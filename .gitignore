@@ -1,0 +1,15 @@
+.env
+
+influxdb/*
+!influxdb/influxdb.conf
+
+nodered/*
+!nodered/flows.json
+!nodered/package.json
+!nodered/Dockerfile
+
+grafana/
+
+collectd/
+
+_*_copy
