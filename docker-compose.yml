@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   web:
-    image: nginx
+    image: nginx 
     networks:
       - backend
     ports:
@@ -61,6 +61,7 @@ services:
       - ${INFLUX_ROOT}:/var/lib/influxdb 
       - ${COLLECTD_ROOT}:/usr/share/collectd
     command: -config /etc/influxdb/influxdb.conf 
+    user: "$UID:$GID"
 
   grafana_dashboards:
     image: grafana/grafana
@@ -75,7 +76,7 @@ services:
     user: "$UID:$GID"
 
   node_red:
-    build: ./nodered
+    image: nodered/node-red
     networks:
       - backend
     ports:
@@ -84,14 +85,16 @@ services:
       - ${NODERED_ROOT}:/data 
     depends_on:
       - vernemq_slaves
-    user: "${UID}:${GID}"
+    user: "$UID:$GID"
     logging:
       driver: "fluentd"
       options:
         tag: "docker.nodered"
+    user: "$UID:$GID"
 
   fluentd:
-    build: ./fluentd
+    build: ${FLUENTD_ROOT}
+    image: idiots/fluentd:v1
     networks:
       - backend
     ports:
@@ -101,7 +104,7 @@ services:
       - ${FLUENTD_ROOT}fluent.conf:/fluentd/etc/fluent.conf
     depends_on:
       - influx_database
-    user: "${UID}:${GID}" 
+    user: "$UID:$GID" 
 
 networks:
   backend:

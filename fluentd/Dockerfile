@@ -16,3 +16,4 @@ RUN buildDeps="sudo make gcc g++ libc-dev" \
  && rm -rf /tmp/* /var/tmp/* /usr/lib/ruby/gems/*/cache/*.gem
 
 USER fluent
+
